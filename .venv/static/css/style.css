@@ -1,18 +1,17 @@
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #f0f2f5;
+    font-family: 'Segoe UI', sans-serif;
+    background: #f5f7fa;
     margin: 0;
-    padding: 20px;
-    min-height: 100vh;
+    padding: 2rem;
 }
 
 .container {
-    max-width: 800px;
+    max-width: 1200px;
     margin: 0 auto;
     background: white;
-    padding: 2rem;
     border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    padding: 2rem;
 }
 
 h1 {
@@ -21,70 +20,70 @@ h1 {
     margin-bottom: 2rem;
 }
 
-#preview {
-    border: 2px dashed #ccc;
+.editor {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+}
+
+.preview-section {
+    border: 2px dashed #d1d5db;
     border-radius: 8px;
-    padding: 20px;
-    text-align: center;
-    margin-bottom: 1rem;
-    cursor: pointer;
-    transition: background 0.3s;
+    min-height: 400px;
+    background: #f8fafc;
+    position: relative;
+    overflow: hidden;
 }
 
-#preview:hover {
-    background: #f8f9fa;
-}
-
-#preview img {
+#live-preview {
     max-width: 100%;
-    max-height: 300px;
+    max-height: 80vh;
     display: none;
-    margin: 0 auto;
+    object-fit: contain;
 }
 
-.form-group {
-    margin: 1rem 0;
+#upload-prompt {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #64748b;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: #34495e;
     font-weight: 500;
+    color: #334155;
 }
 
-input[type="text"], input[type="range"], input[type="color"], select {
+input[type="range"] {
     width: 100%;
-    padding: 8px;
-    margin: 5px 0;
-    border: 1px solid #ddd;
-    border-radius: 4px;
 }
 
 .btn {
-    background: #3498db;
+    background: #3b82f6;
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
+    padding: 12px 24px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 16px;
-    display: inline-block;
-    margin-top: 1rem;
+    transition: background 0.2s;
+    align-self: flex-start;
 }
 
 .btn:hover {
-    background: #2980b9;
-}
-
-.result {
-    text-align: center;
-    margin-top: 2rem;
-}
-
-.result img {
-    max-width: 100%;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    margin: 1rem 0;
+    background: #2563eb;
 }

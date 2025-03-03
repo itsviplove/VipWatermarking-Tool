@@ -1,12 +1,13 @@
-from flask import Flask, render_template, request, send_file, redirect, url_for
+from flask import Flask, render_template, request, send_file, jsonify
 from PIL import Image, ImageDraw, ImageFont
 from werkzeug.utils import secure_filename
+import base64
+import io
 import os
 import datetime
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB limit
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 
@@ -14,8 +15,8 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def add_watermark(image_path, text, font_size=20, color="#FFFFFF", position="bottom-right", opacity=0.5):
-    img = Image.open(image_path).convert("RGBA")
+def add_watermark(img, text, font_size=20, color="#FFFFFF", position="bottom-right", opacity=0.5):
+    img = Image.open(io.BytesIO(img)).convert("RGBA")
     watermark = Image.new("RGBA", img.size)
     draw = ImageDraw.Draw(watermark)
 
@@ -23,13 +24,11 @@ def add_watermark(image_path, text, font_size=20, color="#FFFFFF", position="bot
     rgb = tuple(int(color.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4))
     rgba = rgb + (int(255 * opacity),)
 
-    # Load font (replace "arial.ttf" with your font path if needed)
     try:
         font = ImageFont.truetype("Arial.ttf", font_size)
     except IOError:
         font = ImageFont.load_default()
 
-    # Calculate text position
     text_width, text_height = draw.textsize(text, font=font)
     positions = {
         "top-left": (10, 10),
@@ -40,58 +39,74 @@ def add_watermark(image_path, text, font_size=20, color="#FFFFFF", position="bot
     }
     x, y = positions.get(position, positions["bottom-right"])
 
-    # Draw watermark
     draw.text((x, y), text, font=font, fill=rgba)
-
-    # Combine images
     watermarked = Image.alpha_composite(img, watermark)
     return watermarked.convert("RGB")
 
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
 def index():
-    if request.method == 'POST':
-        # Validate file
-        if 'image' not in request.files:
-            return redirect(request.url)
-        image = request.files['image']
-        if image.filename == '' or not allowed_file(image.filename):
-            return "Invalid file! Only PNG/JPG/JPEG allowed.", 400
-
-        # Sanitize filename
-        filename = secure_filename(image.filename)
-        upload_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-        # Save file
-        image.save(upload_path)
-
-        # Process watermark
-        watermark_text = request.form['text']
-        font_size = int(request.form.get('font_size', 20))
-        color = request.form.get('color', '#FFFFFF')
-        position = request.form.get('position', 'bottom-right')
-        opacity = float(request.form.get('opacity', 0.5))
-
-        # Generate watermarked image
-        output = add_watermark(upload_path, watermark_text, font_size, color, position, opacity)
-
-        # Save output
-        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        output_filename = f"watermarked_{timestamp}.jpg"
-        output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-        output.save(output_path)
-
-        return render_template('index.html', result=output_filename)
-
     return render_template('index.html')
 
 
-@app.route('/download/<filename>')
-def download(filename):
-    return send_file(
-        os.path.join(app.config['UPLOAD_FOLDER'], filename),
-        as_attachment=True
-    )
+@app.route('/preview', methods=['POST'])
+def preview():
+    try:
+        # Get data from AJAX request
+        image_data = request.form['image'].split(',')[1]
+        text = request.form['text']
+        font_size = int(request.form['font_size'])
+        color = request.form['color']
+        position = request.form['position']
+        opacity = float(request.form['opacity'])
+
+        # Decode base64 image
+        img_bytes = base64.b64decode(image_data)
+
+        # Process watermark
+        output = add_watermark(img_bytes, text, font_size, color, position, opacity)
+
+        # Convert to base64 for preview
+        buffered = io.BytesIO()
+        output.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+
+        return jsonify({'preview': f"data:image/jpeg;base64,{img_str}"})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/download', methods=['POST'])
+def download():
+    try:
+        # Get data from request
+        image_data = request.form['image'].split(',')[1]
+        text = request.form['text']
+        font_size = int(request.form['font_size'])
+        color = request.form['color']
+        position = request.form['position']
+        opacity = float(request.form['opacity'])
+
+        # Process image
+        img_bytes = base64.b64decode(image_data)
+        output = add_watermark(img_bytes, text, font_size, color, position, opacity)
+
+        # Create downloadable file
+        buffered = io.BytesIO()
+        output.save(buffered, format="JPEG")
+        buffered.seek(0)
+
+        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        return send_file(
+            buffered,
+            as_attachment=True,
+            download_name=f"watermarked_{timestamp}.jpg",
+            mimetype="image/jpeg"
+        )
+
+    except Exception as e:
+        return str(e), 400
 
 
 if __name__ == '__main__':

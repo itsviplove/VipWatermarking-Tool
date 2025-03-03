@@ -1,128 +1,173 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Image Watermarking Tool</title>
+    <title>Live Watermark Editor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
-        <h1>📷 Image Watermarking Tool</h1>
+        <h1>🎨 Live Watermark Editor</h1>
 
-        <form method="post" enctype="multipart/form-data">
-            <div id="preview">
-                <p>Drag and drop image here or click to upload</p>
-                <img id="preview-image">
-            </div>
-            <input type="file" name="image" id="file-input" accept="image/*" required hidden>
-
-            <div class="form-group">
-                <label>Watermark Text:</label>
-                <input type="text" name="text" placeholder="Enter watermark text" required>
-            </div>
-
-            <div class="form-group">
-                <label>Font Size:</label>
-                <input type="range" name="font_size" min="10" max="50" value="20">
-                <span id="font-size-value">20</span>
+        <div class="editor">
+            <div class="preview-section">
+                <div id="preview-box">
+                    <img id="live-preview" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
+                    <div id="upload-prompt">
+                        <p>Click or drag image here to start</p>
+                    </div>
+                </div>
+                <input type="file" id="file-input" accept="image/*" hidden>
             </div>
 
-            <div class="form-group">
-                <label>Text Color:</label>
-                <input type="color" name="color" value="#ffffff">
-            </div>
+            <div class="controls">
+                <div class="control-group">
+                    <label>Watermark Text:</label>
+                    <input type="text" id="watermark-text" placeholder="Your watermark">
+                </div>
 
-            <div class="form-group">
-                <label>Position:</label>
-                <select name="position">
-                    <option value="top-left">Top Left</option>
-                    <option value="top-right">Top Right</option>
-                    <option value="center">Center</option>
-                    <option value="bottom-left">Bottom Left</option>
-                    <option value="bottom-right" selected>Bottom Right</option>
-                </select>
-            </div>
+                <div class="control-group">
+                    <label>Font Size: <span id="font-size-display">20</span></label>
+                    <input type="range" id="font-size" min="10" max="50" value="20">
+                </div>
 
-            <div class="form-group">
-                <label>Opacity:</label>
-                <input type="range" name="opacity" min="0" max="1" step="0.1" value="0.5">
-                <span id="opacity-value">0.5</span>
-            </div>
+                <div class="control-group">
+                    <label>Text Color:</label>
+                    <input type="color" id="text-color" value="#ffffff">
+                </div>
 
-            <button type="submit" class="btn">Add Watermark</button>
-        </form>
+                <div class="control-group">
+                    <label>Position:</label>
+                    <select id="position">
+                        <option value="top-left">Top Left</option>
+                        <option value="top-right">Top Right</option>
+                        <option value="center">Center</option>
+                        <option value="bottom-left">Bottom Left</option>
+                        <option value="bottom-right" selected>Bottom Right</option>
+                    </select>
+                </div>
 
-        {% if result %}
-            <div class="result">
-                <h3>Your Watermarked Image:</h3>
-                <img src="{{ url_for('static', filename='uploads/' + result) }}">
-                <a href="{{ url_for('download', filename=result) }}" class="btn">Download</a>
+                <div class="control-group">
+                    <label>Opacity: <span id="opacity-display">0.5</span></label>
+                    <input type="range" id="opacity" min="0" max="1" step="0.1" value="0.5">
+                </div>
+
+                <button id="download-btn" class="btn">Download Final Image</button>
             </div>
-        {% endif %}
+        </div>
     </div>
 
     <script>
-        // Drag-and-drop and preview
-        const dropArea = document.getElementById('preview');
+        const previewImg = document.getElementById('live-preview');
         const fileInput = document.getElementById('file-input');
-        const previewImage = document.getElementById('preview-image');
+        const previewBox = document.getElementById('preview-box');
+        const uploadPrompt = document.getElementById('upload-prompt');
 
-        // Prevent default drag behaviors
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, preventDefaults, false);
+        // Event listeners for all controls
+        const controls = [
+            '#watermark-text', '#font-size', '#text-color',
+            '#position', '#opacity'
+        ].forEach(selector => {
+            document.querySelector(selector).addEventListener('input', updatePreview);
         });
 
-        function preventDefaults (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
+        // Handle image selection
+        previewBox.addEventListener('click', () => fileInput.click());
+        previewBox.addEventListener('dragover', handleDragOver);
+        previewBox.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
 
-        // Highlight drop area
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropArea.addEventListener(eventName, highlight, false);
-        });
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, unhighlight, false);
-        });
+        // Download button
+        document.getElementById('download-btn').addEventListener('click', handleDownload);
 
-        function highlight(e) {
-            dropArea.style.backgroundColor = '#f0f0f0';
-        }
+        let currentImage = null;
 
-        function unhighlight(e) {
-            dropArea.style.backgroundColor = '';
-        }
+        async function updatePreview() {
+            if (!currentImage) return;
 
-        // Handle dropped files
-        dropArea.addEventListener('drop', handleDrop, false);
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const file = dt.files[0];
-            handleFile(file);
-        }
+            const formData = new FormData();
+            formData.append('image', currentImage);
+            formData.append('text', document.getElementById('watermark-text').value);
+            formData.append('font_size', document.getElementById('font-size').value);
+            formData.append('color', document.getElementById('text-color').value);
+            formData.append('position', document.getElementById('position').value);
+            formData.append('opacity', document.getElementById('opacity').value);
 
-        // Handle file input
-        dropArea.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+            try {
+                const response = await fetch('/preview', {
+                    method: 'POST',
+                    body: new URLSearchParams(formData)
+                });
 
-        function handleFile(file) {
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewImage.src = e.target.result;
-                    previewImage.style.display = 'block';
-                    dropArea.querySelector('p').style.display = 'none';
-                };
-                reader.readAsDataURL(file);
-                fileInput.files = e.target.files;  // Update the file input
+                const data = await response.json();
+                if (data.preview) {
+                    previewImg.src = data.preview;
+                    previewImg.style.display = 'block';
+                    uploadPrompt.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error:', error);
             }
         }
 
-        // Update range values
-        document.querySelector('input[name="font_size"]').addEventListener('input', function(e) {
-            document.getElementById('font-size-value').textContent = e.target.value;
+        function handleFileSelect(e) {
+            const file = e.target.files?.[0] || e.dataTransfer?.files?.[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentImage = e.target.result;
+                    updatePreview();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            previewBox.style.backgroundColor = '#f0f0f0';
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            previewBox.style.backgroundColor = '';
+            handleFileSelect(e);
+        }
+
+        async function handleDownload() {
+            if (!currentImage) return alert('Please select an image first!');
+
+            const formData = new FormData();
+            formData.append('image', currentImage);
+            formData.append('text', document.getElementById('watermark-text').value);
+            formData.append('font_size', document.getElementById('font-size').value);
+            formData.append('color', document.getElementById('text-color').value);
+            formData.append('position', document.getElementById('position').value);
+            formData.append('opacity', document.getElementById('opacity').value);
+
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    body: new URLSearchParams(formData)
+                });
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `watermarked_${Date.now()}.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Download failed:', error);
+            }
+        }
+
+        // Update value displays
+        document.getElementById('font-size').addEventListener('input', (e) => {
+            document.getElementById('font-size-display').textContent = e.target.value;
         });
-        document.querySelector('input[name="opacity"]').addEventListener('input', function(e) {
-            document.getElementById('opacity-value').textContent = e.target.value;
+        document.getElementById('opacity').addEventListener('input', (e) => {
+            document.getElementById('opacity-display').textContent = e.target.value;
         });
     </script>
 </body>
