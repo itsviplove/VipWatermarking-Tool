@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Watermarking Tool</title>
+    <style>
+        body { font-family: Arial; text-align: center; padding: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        input, button { margin: 10px; padding: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Add Watermark to Image</h1>
+        <form method="post" enctype="multipart/form-data">
+            <input type="file" name="image" accept="image/*" required><br>
+            <input type="text" name="text" placeholder="Watermark text" required><br>
+            <button type="submit">Add Watermark</button>
+        </form>
+
+        {% if result %}
+            <h3>Watermarked Image:</h3>
+            <img src="{{ url_for('static', filename='uploads/' + result) }}" width="300"><br>
+            <a href="{{ url_for('download', filename=result) }}">
+                <button>Download</button>
+            </a>
+        {% endif %}
+    </div>
+</body>
+</html>
