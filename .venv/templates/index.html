@@ -2,28 +2,128 @@
 <html>
 <head>
     <title>Image Watermarking Tool</title>
-    <style>
-        body { font-family: Arial; text-align: center; padding: 20px; }
-        .container { max-width: 600px; margin: auto; }
-        input, button { margin: 10px; padding: 8px; }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
-        <h1>Add Watermark to Image</h1>
+        <h1>📷 Image Watermarking Tool</h1>
+
         <form method="post" enctype="multipart/form-data">
-            <input type="file" name="image" accept="image/*" required><br>
-            <input type="text" name="text" placeholder="Watermark text" required><br>
-            <button type="submit">Add Watermark</button>
+            <div id="preview">
+                <p>Drag and drop image here or click to upload</p>
+                <img id="preview-image">
+            </div>
+            <input type="file" name="image" id="file-input" accept="image/*" required hidden>
+
+            <div class="form-group">
+                <label>Watermark Text:</label>
+                <input type="text" name="text" placeholder="Enter watermark text" required>
+            </div>
+
+            <div class="form-group">
+                <label>Font Size:</label>
+                <input type="range" name="font_size" min="10" max="50" value="20">
+                <span id="font-size-value">20</span>
+            </div>
+
+            <div class="form-group">
+                <label>Text Color:</label>
+                <input type="color" name="color" value="#ffffff">
+            </div>
+
+            <div class="form-group">
+                <label>Position:</label>
+                <select name="position">
+                    <option value="top-left">Top Left</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="center">Center</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-right" selected>Bottom Right</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Opacity:</label>
+                <input type="range" name="opacity" min="0" max="1" step="0.1" value="0.5">
+                <span id="opacity-value">0.5</span>
+            </div>
+
+            <button type="submit" class="btn">Add Watermark</button>
         </form>
 
         {% if result %}
-            <h3>Watermarked Image:</h3>
-            <img src="{{ url_for('static', filename='uploads/' + result) }}" width="300"><br>
-            <a href="{{ url_for('download', filename=result) }}">
-                <button>Download</button>
-            </a>
+            <div class="result">
+                <h3>Your Watermarked Image:</h3>
+                <img src="{{ url_for('static', filename='uploads/' + result) }}">
+                <a href="{{ url_for('download', filename=result) }}" class="btn">Download</a>
+            </div>
         {% endif %}
     </div>
+
+    <script>
+        // Drag-and-drop and preview
+        const dropArea = document.getElementById('preview');
+        const fileInput = document.getElementById('file-input');
+        const previewImage = document.getElementById('preview-image');
+
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop area
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropArea.style.backgroundColor = '#f0f0f0';
+        }
+
+        function unhighlight(e) {
+            dropArea.style.backgroundColor = '';
+        }
+
+        // Handle dropped files
+        dropArea.addEventListener('drop', handleDrop, false);
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const file = dt.files[0];
+            handleFile(file);
+        }
+
+        // Handle file input
+        dropArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        function handleFile(file) {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImage.src = e.target.result;
+                    previewImage.style.display = 'block';
+                    dropArea.querySelector('p').style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+                fileInput.files = e.target.files;  // Update the file input
+            }
+        }
+
+        // Update range values
+        document.querySelector('input[name="font_size"]').addEventListener('input', function(e) {
+            document.getElementById('font-size-value').textContent = e.target.value;
+        });
+        document.querySelector('input[name="opacity"]').addEventListener('input', function(e) {
+            document.getElementById('opacity-value').textContent = e.target.value;
+        });
+    </script>
 </body>
 </html>
